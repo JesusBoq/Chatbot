@@ -30,7 +30,7 @@ export async function getChatResponse(
     console.error('Error getting response from API:', error)
     
     if (error.message?.includes('Failed to fetch') || error.message?.includes('NetworkError')) {
-      throw new Error('Unable to connect to the server. Please make sure the backend server is running on port 3001.')
+      throw new Error('Unable to connect to the server. Please check that the backend is running and accessible.')
     }
     
     throw new Error(error.message || 'Error communicating with the API. Please try again later.')
