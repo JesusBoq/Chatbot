@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: air-india-chatbot
+    env: node
+    buildCommand: npm install && npm run build
+    startCommand: npm run start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: AMADEUS_API_KEY
+        sync: false
+        optional: true
+      - key: AMADEUS_API_SECRET
+        sync: false
+        optional: true
+      - key: AMADEUS_ENV
+        value: test
+
