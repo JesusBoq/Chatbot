@@ -344,22 +344,17 @@ function Chatbot() {
     const handleVisibilityChange = () => {
       if (document.hidden) {
         setConversations((prev) => {
-          const activeConv = prev.find(c => c.id === activeTabId)
-          if (activeConv && shouldArchiveConversation(activeConv)) {
-            return prev.map((conv) => {
-              if (conv.id === activeTabId) {
-                return {
-                  ...conv,
-                  isActive: false,
-                }
+          return prev.map((conv) => {
+            if (conv.id === activeTabId) {
+              return {
+                ...conv,
+                lastActivity: new Date(),
               }
-              return conv
-            })
-          } else if (activeConv && !shouldArchiveConversation(activeConv)) {
-            return prev.filter(c => c.id !== activeTabId)
-          }
-          return prev
+            }
+            return conv
+          })
         })
+        saveLastSessionTime()
       } else {
         const timeSinceLastSession = getLastSessionTime()
         if (timeSinceLastSession && Date.now() - timeSinceLastSession > SESSION_TIMEOUT) {
@@ -418,6 +413,33 @@ function Chatbot() {
             }
           })
         } else {
+          setConversations((prev) => {
+            const activeConv = prev.find(c => c.id === activeTabId)
+            if (activeConv) {
+              return prev.map((conv) => {
+                if (conv.id === activeTabId) {
+                  return {
+                    ...conv,
+                    isActive: true,
+                    lastActivity: new Date(),
+                  }
+                }
+                return conv
+              })
+            } else {
+              const newConv: Conversation = {
+                id: Date.now().toString(),
+                title: 'New Conversation',
+                messages: [initialMessage],
+                createdAt: new Date(),
+                updatedAt: new Date(),
+                lastActivity: new Date(),
+                isActive: true,
+              }
+              setActiveTabId(newConv.id)
+              return [...prev, newConv]
+            }
+          })
           updateLastActivity()
         }
       }
@@ -425,15 +447,23 @@ function Chatbot() {
 
     const handleBeforeUnload = () => {
       setConversations((prev) => {
-        return prev.map((conv) => {
-          if (conv.id === activeTabId) {
-            return {
-              ...conv,
-              isActive: false,
-            }
+        const activeConv = prev.find(c => c.id === activeTabId)
+        if (activeConv) {
+          if (shouldArchiveConversation(activeConv)) {
+            return prev.map((conv) => {
+              if (conv.id === activeTabId) {
+                return {
+                  ...conv,
+                  isActive: false,
+                }
+              }
+              return conv
+            })
+          } else {
+            return prev.filter(c => c.id !== activeTabId)
           }
-          return conv
-        })
+        }
+        return prev
       })
     }
 
@@ -452,11 +482,8 @@ function Chatbot() {
   const handleSend = async (customMessage?: string) => {
     const messageToSend = customMessage || inputValue
     if (!messageToSend.trim() || isLoading) {
-      console.log('handleSend blocked:', { messageToSend, isLoading })
       return
     }
-    
-    console.log('handleSend called with:', messageToSend)
 
     const userMessage: Message = {
       id: Date.now().toString(),
@@ -502,15 +529,7 @@ function Chatbot() {
           content: msg.text,
         }))
 
-      console.log('Sending to API:', {
-        messageCount: chatMessages.length,
-        lastMessage: chatMessages[chatMessages.length - 1],
-        allMessages: chatMessages
-      })
-
       const response = await getChatResponse(chatMessages)
-      
-      console.log('Received response:', response)
 
       const botMessage: Message = {
         id: (Date.now() + 1).toString(),
@@ -628,9 +647,7 @@ function Chatbot() {
   }
 
   const handleQuickAction = (query: string) => {
-    console.log('handleQuickAction called with:', query)
     if (isLoading) {
-      console.log('handleQuickAction blocked: isLoading is true')
       return
     }
     handleSend(query)

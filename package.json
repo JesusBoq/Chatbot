@@ -12,11 +12,8 @@
     "dev:server": "node server/index.js",
     "dev:all": "concurrently \"npm run dev:server\" \"npm run dev\"",
     "build": "tsc && vite build",
-    "build:server": "echo 'Server files are ready'",
     "start": "node server/index.js",
     "preview": "vite preview",
-    "benchmark": "node server/benchmark.js",
-    "test:single": "node server/benchmark.js --single",
     "evaluate": "node server/evaluation-simple.js",
     "diagnose": "node server/diagnose.js"
   },

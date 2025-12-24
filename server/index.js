@@ -9,7 +9,7 @@ import { detectLanguage, getLanguageInstructions } from './languageDetector.js';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 
-dotenv.config();
+dotenv.config({ path: join(dirname(fileURLToPath(import.meta.url)), '.env') });
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -17,7 +17,12 @@ const PORT = process.env.PORT || 3001;
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-// CORS configuration - allow all origins for mobile access
+if (!process.env.OPENAI_API_KEY) {
+  console.error('❌ ERROR: OPENAI_API_KEY is not set!');
+  console.error('Please create a .env file in the server/ directory with:');
+  console.error('OPENAI_API_KEY=your_api_key_here');
+  process.exit(1);
+}
 app.use(cors({
   origin: '*',
   methods: ['GET', 'POST', 'OPTIONS'],
@@ -35,14 +40,7 @@ let preloadedScrapedData = null;
 
 const preloadScrapedData = async () => {
   try {
-    console.log('Preloading scraped data...');
-    const startTime = Date.now();
     preloadedScrapedData = await scrapeAirlineInfo();
-    const endTime = Date.now();
-    console.log(`Scraped data preloaded successfully in ${(endTime - startTime) / 1000}s`);
-    if (preloadedScrapedData) {
-      console.log('Preloaded data keys:', Object.keys(preloadedScrapedData).filter(k => k !== 'timestamp'));
-    }
   } catch (error) {
     console.error('Error preloading scraped data:', error);
   }
@@ -52,7 +50,6 @@ preloadScrapedData();
 
 setInterval(() => {
   if (!preloadedScrapedData) {
-    console.log('Retrying to preload scraped data...');
     preloadScrapedData();
   }
 }, 60000);
@@ -60,11 +57,6 @@ setInterval(() => {
 app.post('/api/chat', async (req, res) => {
   try {
     const { messages } = req.body;
-
-    console.log('Received request:', {
-      messageCount: messages?.length,
-      lastMessage: messages?.[messages.length - 1],
-    });
 
     if (!messages || !Array.isArray(messages)) {
       return res.status(400).json({ error: 'Messages array is required' });
@@ -75,23 +67,15 @@ app.post('/api/chat', async (req, res) => {
     const detectedLanguage = detectLanguage(lastUserMessage);
     const languageInfo = getLanguageInstructions(detectedLanguage);
     
-    console.log('Query type detected:', queryType.type, {
-      needsScraping: queryType.needsScraping,
-      needsFlightAPI: queryType.needsFlightAPI,
-      language: detectedLanguage,
-    });
-    
     let scrapedData = null;
     if (queryType.needsScraping) {
       if (preloadedScrapedData) {
         scrapedData = preloadedScrapedData;
-        console.log('Using preloaded scraped data');
       } else {
         try {
           scrapedData = await scrapeAirlineInfo();
           if (scrapedData) {
             preloadedScrapedData = scrapedData;
-            console.log('Scraped data loaded and cached');
           }
         } catch (error) {
           console.error('Error during scraping:', error);
@@ -103,9 +87,6 @@ app.post('/api/chat', async (req, res) => {
     if (queryType.needsFlightAPI && queryType.flightQuery) {
       try {
         flightData = await searchFlights(queryType.flightQuery);
-        if (flightData) {
-          console.log('Flight data retrieved:', flightData.flights.length, 'flights found');
-        }
       } catch (error) {
         console.error('Error searching flights:', error);
       }

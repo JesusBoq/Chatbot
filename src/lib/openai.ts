@@ -3,8 +3,6 @@ export interface ChatMessage {
   content: string
 }
 
-// In production, if VITE_API_URL is not set, use relative URL (same domain)
-// This works when frontend and backend are served from the same server
 const API_URL = import.meta.env.VITE_API_URL || (import.meta.env.PROD ? '' : 'http://localhost:3001')
 
 export async function getChatResponse(
@@ -12,11 +10,8 @@ export async function getChatResponse(
 ): Promise<string> {
   try {
     const apiUrl = `${API_URL}/api/chat`;
-    console.log('Making request to:', apiUrl);
-    
-    // Create abort controller for timeout (more compatible with mobile browsers)
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 second timeout
+    const timeoutId = setTimeout(() => controller.abort(), 60000);
     
     const response = await fetch(apiUrl, {
       method: 'POST',
@@ -38,10 +33,6 @@ export async function getChatResponse(
     return data.response || 'Sorry, I could not generate a response.'
   } catch (error: any) {
     console.error('Error getting response from API:', error)
-    console.error('Error details:', {
-      message: error.message,
-      name: error.name,
-    })
     
     if (error.name === 'AbortError' || error.message?.includes('timeout')) {
       throw new Error('Request timed out. Please check your internet connection and try again.')
