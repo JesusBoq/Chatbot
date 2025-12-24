@@ -5,27 +5,40 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:server": "node server/index.js",
+    "dev:all": "concurrently \"npm run dev:server\" \"npm run dev\"",
     "build": "tsc && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "benchmark": "node server/benchmark.js",
+    "test:single": "node server/benchmark.js --single",
+    "evaluate": "node server/evaluation-simple.js",
+    "diagnose": "node server/diagnose.js"
   },
   "dependencies": {
-    "autoprefixer": "^10.4.23",
-    "class-variance-authority": "^0.7.1",
-    "clsx": "^2.1.1",
-    "lucide-react": "^0.562.0",
-    "postcss": "^8.5.6",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
-    "tailwind-merge": "^3.4.0",
-    "tailwindcss": "^4.1.18",
-    "tailwindcss-animate": "^1.0.7"
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "openai": "^4.20.1",
+    "lucide-react": "^0.294.0",
+    "class-variance-authority": "^0.7.0",
+    "clsx": "^2.0.0",
+    "tailwind-merge": "^2.1.0",
+    "cheerio": "^1.0.0-rc.12",
+    "axios": "^1.6.2"
   },
   "devDependencies": {
     "@types/node": "^24.10.1",
-    "@types/react": "^18.3.12",
-    "@types/react-dom": "^18.3.1",
-    "@vitejs/plugin-react": "^4.3.3",
+    "@types/react": "^18.2.43",
+    "@types/react-dom": "^18.2.17",
+    "@vitejs/plugin-react": "^4.2.1",
     "typescript": "~5.9.3",
-    "vite": "^7.2.4"
+    "vite": "^7.2.4",
+    "concurrently": "^8.2.2",
+    "tailwindcss": "^3.4.1",
+    "postcss": "^8.4.32",
+    "autoprefixer": "^10.4.16",
+    "tailwindcss-animate": "^1.0.7"
   }
 }
