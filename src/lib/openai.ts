@@ -3,7 +3,9 @@ export interface ChatMessage {
   content: string
 }
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+// In production, if VITE_API_URL is not set, use relative URL (same domain)
+// This works when frontend and backend are served from the same server
+const API_URL = import.meta.env.VITE_API_URL || (import.meta.env.PROD ? '' : 'http://localhost:3001')
 
 export async function getChatResponse(
   messages: ChatMessage[]
