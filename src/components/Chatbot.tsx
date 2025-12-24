@@ -596,6 +596,8 @@ function Chatbot() {
         messages: [initialMessage],
         createdAt: new Date(),
         updatedAt: new Date(),
+        lastActivity: new Date(),
+        isActive: true,
       }])
       return
     }
@@ -815,7 +817,7 @@ function Chatbot() {
                 }}
               />
               <Button
-                onClick={handleSend}
+                onClick={() => handleSend()}
                 size="icon"
                 className="shrink-0"
                 disabled={isLoading || !inputValue.trim()}
