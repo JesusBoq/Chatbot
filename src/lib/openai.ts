@@ -11,13 +11,23 @@ export async function getChatResponse(
   messages: ChatMessage[]
 ): Promise<string> {
   try {
-    const response = await fetch(`${API_URL}/api/chat`, {
+    const apiUrl = `${API_URL}/api/chat`;
+    console.log('Making request to:', apiUrl);
+    
+    // Create abort controller for timeout (more compatible with mobile browsers)
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 second timeout
+    
+    const response = await fetch(apiUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({ messages }),
+      signal: controller.signal,
     })
+    
+    clearTimeout(timeoutId);
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}))
@@ -28,9 +38,17 @@ export async function getChatResponse(
     return data.response || 'Sorry, I could not generate a response.'
   } catch (error: any) {
     console.error('Error getting response from API:', error)
+    console.error('Error details:', {
+      message: error.message,
+      name: error.name,
+    })
+    
+    if (error.name === 'AbortError' || error.message?.includes('timeout')) {
+      throw new Error('Request timed out. Please check your internet connection and try again.')
+    }
     
     if (error.message?.includes('Failed to fetch') || error.message?.includes('NetworkError')) {
-      throw new Error('Unable to connect to the server. Please check that the backend is running and accessible.')
+      throw new Error('Unable to connect to the server. Please check your internet connection and that the backend is running.')
     }
     
     throw new Error(error.message || 'Error communicating with the API. Please try again later.')
