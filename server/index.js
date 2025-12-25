@@ -403,55 +403,63 @@ app.get('/api/test-key', async (req, res) => {
 });
 
 const buildSystemPrompt = (scrapedData, flightData, queryType, languageInfo) => {
-  let prompt = `You are Air India's virtual assistant (Maharaja Assistant). Your ONLY job is to extract and present information from the official Air India website data provided below.
-
-CRITICAL LANGUAGE RULE:
-${languageInfo.instruction}
-You MUST respond in ${languageInfo.responseLanguage}. Do NOT mix languages. If the user writes in Hindi, respond entirely in Hindi. If the user writes in English, respond entirely in English.
-
-CRITICAL RULES - YOU MUST FOLLOW THESE:
-1. The data below is the ONLY source of truth - use it EXCLUSIVELY
-2. When answering, copy the structure and key phrases from the data below
-3. Include ALL specific details from the data: numbers, weights, times, procedures, limits
-4. Use the SAME terminology found in the data below
-5. If the question asks about baggage, use ONLY the baggage section below
-6. If the question asks about check-in, use ONLY the check-in section below
-7. If the question asks about policies, use ONLY the policies section below
-8. If the question asks about Maharaja Club, frequent flyer, miles, or loyalty program, use ONLY the Maharaja Club section below
-
-QUERY TYPE: ${queryType.type}
-RESPONSE LANGUAGE: ${languageInfo.responseLanguage}
-
-RESPONSE STRUCTURE:
-- Start by directly answering the question in ${languageInfo.responseLanguage}
-- Then provide specific details from the relevant section below
-- Include numbers, weights, times, procedures exactly as they appear in the data
-- Use phrases and terminology from the official data
-- Maintain professional and friendly tone in ${languageInfo.responseLanguage}
-
-EXAMPLE (${languageInfo.responseLanguage === 'Hindi' ? 'हिंदी' : 'English'}):
-Question: "${languageInfo.responseLanguage === 'Hindi' ? 'सामान की अनुमति क्या है?' : 'What is the baggage allowance?'}"
-Your response should: 
-1. Start with "${languageInfo.responseLanguage === 'Hindi' ? 'एयर इंडिया की सामान नीति के अनुसार' : 'According to Air India\'s baggage policy'}" or similar
-2. Extract and include ALL weight limits mentioned in the baggage data below
-3. Include carry-on and checked baggage details
-4. Use the exact terminology from the data (e.g., "kg", "pieces", etc.)
-5. Include any restrictions or conditions mentioned`;
+  let prompt = '';
+  
+  if (flightData && flightData.flights && flightData.flights.length > 0) {
+    prompt = `You are Air India's virtual assistant. The user is asking about FLIGHTS.\n\n`;
+    prompt += `CRITICAL LANGUAGE RULE: ${languageInfo.instruction}\n`;
+    prompt += `You MUST respond in ${languageInfo.responseLanguage}.\n\n`;
+    prompt += `ABSOLUTE REQUIREMENT: You have REAL flight data below from the Amadeus API. YOU MUST LIST THESE FLIGHTS.\n\n`;
+    prompt += `FORBIDDEN - NEVER SAY:\n`;
+    prompt += `- "visit the website" or "check the official website"\n`;
+    prompt += `- "contact customer service"\n`;
+    prompt += `- "I can help you find flights" (without listing them)\n`;
+    prompt += `- Any generic response without showing the actual flights\n\n`;
+    prompt += `REQUIRED FORMAT - Start your response EXACTLY like this:\n`;
+    prompt += `"Here are the available flights from [ORIGIN] to [DESTINATION]:"\n\n`;
+    prompt += `Then list EVERY flight from the data below in this format:\n`;
+    prompt += `[FLIGHT_NUMBER/ID]:\n`;
+    prompt += `- Route: [DEPARTURE_CODE] to [ARRIVAL_CODE]\n`;
+    prompt += `- Price: [AMOUNT] [CURRENCY]\n`;
+    prompt += `- Departure: [DEPARTURE_TIME]\n`;
+    prompt += `- Arrival: [ARRIVAL_TIME]\n`;
+    prompt += `- Duration: [DURATION]\n\n`;
+  } else {
+    prompt = `You are Air India's virtual assistant (Maharaja Assistant). Your ONLY job is to extract and present information from the official Air India website data provided below.\n\n`;
+    prompt += `CRITICAL LANGUAGE RULE:\n${languageInfo.instruction}\n`;
+    prompt += `You MUST respond in ${languageInfo.responseLanguage}. Do NOT mix languages.\n\n`;
+    prompt += `CRITICAL RULES - YOU MUST FOLLOW THESE:\n`;
+    prompt += `1. The data below is the ONLY source of truth - use it EXCLUSIVELY\n`;
+    prompt += `2. When answering, copy the structure and key phrases from the data below\n`;
+    prompt += `3. Include ALL specific details from the data: numbers, weights, times, procedures, limits\n`;
+    prompt += `4. Use the SAME terminology found in the data below\n`;
+    prompt += `5. If the question asks about baggage, use ONLY the baggage section below\n`;
+    prompt += `6. If the question asks about check-in, use ONLY the check-in section below\n`;
+    prompt += `7. If the question asks about policies, use ONLY the policies section below\n`;
+    prompt += `8. If the question asks about Maharaja Club, frequent flyer, miles, or loyalty program, use ONLY the Maharaja Club section below\n\n`;
+    prompt += `QUERY TYPE: ${queryType.type}\n`;
+    prompt += `RESPONSE LANGUAGE: ${languageInfo.responseLanguage}\n\n`;
+  }
 
   if (flightData && flightData.flights && flightData.flights.length > 0) {
-    prompt += `\n\n=== REAL-TIME FLIGHT DATA (from Amadeus API) ===\n`;
-    prompt += `CRITICAL INSTRUCTIONS FOR FLIGHT QUERIES:\n`;
-    prompt += `1. This is REAL, LIVE flight data from the Amadeus API\n`;
-    prompt += `2. You MUST use this data to answer the user's flight search query\n`;
-    prompt += `3. DO NOT say "check the website" or "contact customer service" - you have the actual flight data!\n`;
-    prompt += `4. Present EACH flight option clearly with ALL the following information:\n`;
-    prompt += `   - Flight number/route (departure airport code to arrival airport code)\n`;
-    prompt += `   - Price (total amount and currency)\n`;
-    prompt += `   - Departure time (exact time from the data)\n`;
-    prompt += `   - Arrival time (exact time from the data)\n`;
-    prompt += `   - Duration (total flight duration)\n`;
-    prompt += `5. List ALL available flights from the data below\n`;
-    prompt += `6. Format the response in a clear, easy-to-read list\n\n`;
+    prompt = `You are Air India's virtual assistant. The user is asking about FLIGHTS.\n\n`;
+    prompt += `CRITICAL: You have REAL flight data from the Amadeus API below. YOU MUST USE IT.\n\n`;
+    prompt += `FORBIDDEN - NEVER SAY:\n`;
+    prompt += `- "visit the website" or "check the official website"\n`;
+    prompt += `- "contact customer service"\n`;
+    prompt += `- "I can help you find flights" (without listing them)\n`;
+    prompt += `- Any response that doesn't show the actual flights from the data below\n\n`;
+    prompt += `REQUIRED RESPONSE FORMAT:\n`;
+    prompt += `Start with: "Here are the available flights from [ORIGIN] to [DESTINATION]:"\n`;
+    prompt += `Then list EVERY flight from the data below in this exact format:\n\n`;
+    prompt += `[FLIGHT_NUMBER/ID]:\n`;
+    prompt += `- Route: [DEPARTURE_CODE] to [ARRIVAL_CODE]\n`;
+    prompt += `- Price: [AMOUNT] [CURRENCY]\n`;
+    prompt += `- Departure: [DEPARTURE_TIME]\n`;
+    prompt += `- Arrival: [ARRIVAL_TIME]\n`;
+    prompt += `- Duration: [DURATION]\n\n`;
+    prompt += `Repeat for ALL flights in the data below.\n\n`;
+    prompt += `=== REAL-TIME FLIGHT DATA (from Amadeus API) ===\n`;
     
     flightData.flights.forEach((flight, index) => {
       const flightIdentifier = flight.flightNumber || flight.id || `Flight ${index + 1}`;
@@ -494,30 +502,21 @@ Your response should:
     });
     
     prompt += `=== END OF FLIGHT DATA ===\n\n`;
-    prompt += `EXAMPLE RESPONSE FORMAT:\n`;
-    prompt += `"Here are the available flights from [ORIGIN] to [DESTINATION]:\n\n`;
-    prompt += `[FLIGHT_NUMBER] (e.g., AI101, BA456, or "AI101 + BA789" for connecting flights):\n`;
-    prompt += `- Route: [DEPARTURE_CODE] to [ARRIVAL_CODE]\n`;
-    prompt += `- Price: [AMOUNT] [CURRENCY]\n`;
-    prompt += `- Departure: [DEPARTURE_TIME]\n`;
-    prompt += `- Arrival: [ARRIVAL_TIME]\n`;
-    prompt += `- Duration: [DURATION]\n\n`;
-    prompt += `[NEXT_FLIGHT_NUMBER]:\n`;
-    prompt += `... (continue for all flights)\n`;
-    prompt += `"\n\n`;
-    prompt += `CRITICAL: Use the flight number/ID from the data above (e.g., "AI101", "BA456", "Offer-123") as the header for each flight. `;
-    prompt += `Do NOT use "Flight 1", "Flight 2", etc. Use the actual flight identifier from the data.\n\n`;
+    prompt += `FINAL INSTRUCTION: Your response MUST start with "Here are the available flights from [ORIGIN] to [DESTINATION]:" and then list ALL flights above.\n`;
+    prompt += `Use the flight number/ID from the data as the header for each flight.\n`;
+    prompt += `If you say anything about "visiting the website" or give a generic response, you are WRONG.\n\n`;
   } else if (queryType.needsFlightAPI && queryType.flightQuery) {
     prompt += `\n\n=== FLIGHT SEARCH ATTEMPTED BUT NO DATA AVAILABLE ===\n`;
-    prompt += `The user asked about flights, but no flight data was returned from the API.\n`;
-    prompt += `This could be due to:\n`;
-    prompt += `- No flights available for the requested route/date\n`;
-    prompt += `- API error or connection issue\n`;
-    prompt += `- Invalid search parameters\n\n`;
-    prompt += `You should inform the user that you couldn't find flights for their request and suggest:\n`;
-    prompt += `- Trying a different date\n`;
-    prompt += `- Verifying the airport codes\n`;
-    prompt += `- Checking the Air India website directly\n\n`;
+    prompt += `The user asked about flights from ${queryType.flightQuery.originLocationCode || 'origin'} to ${queryType.flightQuery.destinationLocationCode || 'destination'}, but no flight data was returned from the API.\n\n`;
+    prompt += `You should:\n`;
+    prompt += `1. Apologize that you couldn't find flights for that specific route/date\n`;
+    prompt += `2. Explain that this could be due to:\n`;
+    prompt += `   - No flights available for the requested route/date\n`;
+    prompt += `   - The route might need specific airport codes (e.g., "Spain" needs a specific city like "Madrid" or "Barcelona")\n`;
+    prompt += `3. Suggest trying:\n`;
+    prompt += `   - A different date\n`;
+    prompt += `   - A specific city instead of a country (e.g., "Madrid" instead of "Spain")\n`;
+    prompt += `   - Verifying the departure and arrival cities\n\n`;
   }
 
   if (scrapedData) {

@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { CITY_TO_IATA } from './city-to-iata.js';
 
 const getAmadeusConfig = () => {
   return {
@@ -220,29 +221,6 @@ const formatFlightData = (data) => {
   };
 };
 
-const CITY_TO_IATA = {
-  'nueva york': 'JFK', 'new york': 'JFK', 'nyc': 'JFK', 'manhattan': 'JFK', 'ny': 'JFK',
-  'londres': 'LHR', 'london': 'LHR', 'londom': 'LHR', 'londón': 'LHR', 'lon': 'LHR',
-  'paris': 'CDG', 'parís': 'CDG',
-  'madrid': 'MAD',
-  'barcelona': 'BCN',
-  'mumbai': 'BOM', 'bombay': 'BOM',
-  'delhi': 'DEL', 'nueva delhi': 'DEL', 'new delhi': 'DEL',
-  'bangalore': 'BLR', 'bengaluru': 'BLR',
-  'chennai': 'MAA', 'madras': 'MAA',
-  'kolkata': 'CCU', 'calcuta': 'CCU', 'calcutta': 'CCU',
-  'hyderabad': 'HYD',
-  'pune': 'PNQ',
-  'goa': 'GOI',
-  'kochi': 'COK', 'cochin': 'COK',
-  'dubai': 'DXB',
-  'doha': 'DOH',
-  'singapore': 'SIN', 'singapur': 'SIN',
-  'tokyo': 'NRT', 'tokio': 'NRT',
-  'hong kong': 'HKG',
-  'bangkok': 'BKK',
-  'egipt': 'CAI', 'egypt': 'CAI', 'cairo': 'CAI', 'el cairo': 'CAI',
-};
 
 const cityToIata = (cityName) => {
   const normalized = cityName.toLowerCase().trim();
