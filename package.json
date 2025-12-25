@@ -15,7 +15,8 @@
     "start": "node server/index.js",
     "preview": "vite preview",
     "evaluate": "node server/evaluation-simple.js",
-    "diagnose": "node server/diagnose.js"
+    "diagnose": "node server/diagnose.js",
+    "test:amadeus": "node server/test-amadeus.js"
   },
   "dependencies": {
     "react": "^18.2.0",

@@ -1,15 +1,15 @@
+import dotenv from 'dotenv';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
+
+dotenv.config({ path: join(dirname(fileURLToPath(import.meta.url)), '.env') });
 import express from 'express';
 import cors from 'cors';
-import dotenv from 'dotenv';
 import OpenAI from 'openai';
 import { scrapeAirlineInfo } from './scraper.js';
 import { searchFlights } from './amadeus.js';
 import { detectQueryType } from './queryDetector.js';
 import { detectLanguage, getLanguageInstructions } from './languageDetector.js';
-import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
-
-dotenv.config({ path: join(dirname(fileURLToPath(import.meta.url)), '.env') });
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -23,6 +23,11 @@ if (!process.env.OPENAI_API_KEY) {
   console.error('OPENAI_API_KEY=your_api_key_here');
   process.exit(1);
 }
+
+if (!process.env.AMADEUS_API_KEY || !process.env.AMADEUS_API_SECRET) {
+  console.warn('⚠️  Amadeus API credentials not configured. Flight search will not work.');
+}
+
 app.use(cors({
   origin: '*',
   methods: ['GET', 'POST', 'OPTIONS'],
@@ -435,42 +440,84 @@ Your response should:
 
   if (flightData && flightData.flights && flightData.flights.length > 0) {
     prompt += `\n\n=== REAL-TIME FLIGHT DATA (from Amadeus API) ===\n`;
-    prompt += `CRITICAL: This is REAL flight data. You MUST use it to answer flight search queries.\n`;
-    prompt += `Present EACH flight option with: price, departure airport, arrival airport, departure time, arrival time, and duration.\n\n`;
+    prompt += `CRITICAL INSTRUCTIONS FOR FLIGHT QUERIES:\n`;
+    prompt += `1. This is REAL, LIVE flight data from the Amadeus API\n`;
+    prompt += `2. You MUST use this data to answer the user's flight search query\n`;
+    prompt += `3. DO NOT say "check the website" or "contact customer service" - you have the actual flight data!\n`;
+    prompt += `4. Present EACH flight option clearly with ALL the following information:\n`;
+    prompt += `   - Flight number/route (departure airport code to arrival airport code)\n`;
+    prompt += `   - Price (total amount and currency)\n`;
+    prompt += `   - Departure time (exact time from the data)\n`;
+    prompt += `   - Arrival time (exact time from the data)\n`;
+    prompt += `   - Duration (total flight duration)\n`;
+    prompt += `5. List ALL available flights from the data below\n`;
+    prompt += `6. Format the response in a clear, easy-to-read list\n\n`;
     
     flightData.flights.forEach((flight, index) => {
-      prompt += `FLIGHT OPTION ${index + 1}:\n`;
+      const flightIdentifier = flight.flightNumber || flight.id || `Flight ${index + 1}`;
+      prompt += `FLIGHT: ${flightIdentifier}\n`;
       prompt += `Price: ${flight.price.total} ${flight.price.currency}\n`;
       
       if (flight.outbound) {
-        prompt += `Outbound Route: `;
-        flight.outbound.segments.forEach((segment, segIndex) => {
-          if (segIndex > 0) prompt += ` -> `;
-          prompt += `${segment.departure.airport} to ${segment.arrival.airport}`;
-        });
-        prompt += `\n`;
-        prompt += `Departure Time: ${flight.outbound.segments[0]?.departure?.time || 'N/A'}\n`;
-        prompt += `Arrival Time: ${flight.outbound.segments[flight.outbound.segments.length - 1]?.arrival?.time || 'N/A'}\n`;
+        const firstSegment = flight.outbound.segments[0];
+        const lastSegment = flight.outbound.segments[flight.outbound.segments.length - 1];
+        prompt += `Route: ${firstSegment.departure.airport} to ${lastSegment.arrival.airport}\n`;
+        if (flight.outbound.segments.length > 1) {
+          const allFlights = flight.outbound.segments
+            .map(seg => seg.flightNumber || `${seg.carrier}${seg.number || ''}`)
+            .filter(fn => fn)
+            .join(' + ');
+          if (allFlights) {
+            prompt += `Flight Numbers: ${allFlights}\n`;
+          }
+        } else if (firstSegment.flightNumber) {
+          prompt += `Flight Number: ${firstSegment.flightNumber}\n`;
+        }
+        prompt += `Departure: ${firstSegment.departure.time}\n`;
+        prompt += `Arrival: ${lastSegment.arrival.time}\n`;
         prompt += `Duration: ${flight.outbound.duration}\n`;
       }
       
       if (flight.return) {
-        prompt += `Return Route: `;
-        flight.return.segments.forEach((segment, segIndex) => {
-          if (segIndex > 0) prompt += ` -> `;
-          prompt += `${segment.departure.airport} to ${segment.arrival.airport}`;
-        });
-        prompt += `\n`;
-        prompt += `Departure Time: ${flight.return.segments[0]?.departure?.time || 'N/A'}\n`;
-        prompt += `Arrival Time: ${flight.return.segments[flight.return.segments.length - 1]?.arrival?.time || 'N/A'}\n`;
-        prompt += `Duration: ${flight.return.duration}\n`;
+        const firstSegment = flight.return.segments[0];
+        const lastSegment = flight.return.segments[flight.return.segments.length - 1];
+        prompt += `Return Route: ${firstSegment.departure.airport} to ${lastSegment.arrival.airport}\n`;
+        if (flight.return.flightNumber) {
+          prompt += `Return Flight Number: ${flight.return.flightNumber}\n`;
+        }
+        prompt += `Return Departure: ${firstSegment.departure.time}\n`;
+        prompt += `Return Arrival: ${lastSegment.arrival.time}\n`;
+        prompt += `Return Duration: ${flight.return.duration}\n`;
       }
       
       prompt += `\n`;
     });
     
     prompt += `=== END OF FLIGHT DATA ===\n\n`;
-    prompt += `FOR FLIGHT QUERIES: List each flight option with price, route (departure to arrival), departure time, arrival time, and duration. Use the exact data above.\n\n`;
+    prompt += `EXAMPLE RESPONSE FORMAT:\n`;
+    prompt += `"Here are the available flights from [ORIGIN] to [DESTINATION]:\n\n`;
+    prompt += `[FLIGHT_NUMBER] (e.g., AI101, BA456, or "AI101 + BA789" for connecting flights):\n`;
+    prompt += `- Route: [DEPARTURE_CODE] to [ARRIVAL_CODE]\n`;
+    prompt += `- Price: [AMOUNT] [CURRENCY]\n`;
+    prompt += `- Departure: [DEPARTURE_TIME]\n`;
+    prompt += `- Arrival: [ARRIVAL_TIME]\n`;
+    prompt += `- Duration: [DURATION]\n\n`;
+    prompt += `[NEXT_FLIGHT_NUMBER]:\n`;
+    prompt += `... (continue for all flights)\n`;
+    prompt += `"\n\n`;
+    prompt += `CRITICAL: Use the flight number/ID from the data above (e.g., "AI101", "BA456", "Offer-123") as the header for each flight. `;
+    prompt += `Do NOT use "Flight 1", "Flight 2", etc. Use the actual flight identifier from the data.\n\n`;
+  } else if (queryType.needsFlightAPI && queryType.flightQuery) {
+    prompt += `\n\n=== FLIGHT SEARCH ATTEMPTED BUT NO DATA AVAILABLE ===\n`;
+    prompt += `The user asked about flights, but no flight data was returned from the API.\n`;
+    prompt += `This could be due to:\n`;
+    prompt += `- No flights available for the requested route/date\n`;
+    prompt += `- API error or connection issue\n`;
+    prompt += `- Invalid search parameters\n\n`;
+    prompt += `You should inform the user that you couldn't find flights for their request and suggest:\n`;
+    prompt += `- Trying a different date\n`;
+    prompt += `- Verifying the airport codes\n`;
+    prompt += `- Checking the Air India website directly\n\n`;
   }
 
   if (scrapedData) {
